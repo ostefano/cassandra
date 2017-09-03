@@ -135,6 +135,8 @@
  * Anticompaction can cause noisy log messages (CASSANDRA-13684)
  * Switch to client init for sstabledump (CASSANDRA-13683)
  * CQLSH: Don't pause when capturing data (CASSANDRA-13743)
+Merged from 3.0:
+ * Fix race condition when selecting the leader for a counter mutation (CASSANDRA-13043)
 
 
 3.11.1

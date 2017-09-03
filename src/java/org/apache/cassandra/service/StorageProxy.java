@@ -1449,7 +1449,12 @@ public class StorageProxy implements StorageProxyMBean
     {
         Keyspace keyspace = Keyspace.open(keyspaceName);
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-        List<InetAddress> endpoints = StorageService.instance.getLiveNaturalEndpoints(keyspace, key);
+        List<InetAddress> endpoints = new ArrayList<>();
+        StorageService.instance.getLiveNaturalEndpoints(keyspace, key, endpoints);
+
+        // CASSANDRA-13043: filter out those endpoints not accepting clients yet, maybe because still bootstrapping
+        endpoints.removeIf(endpoint -> !StorageService.instance.isRpcReady(endpoint));
+
         if (endpoints.isEmpty())
             // TODO have a way to compute the consistency level
             throw new UnavailableException(cl, cl.blockFor(keyspace), 0);
@@ -1462,6 +1467,10 @@ public class StorageProxy implements StorageProxyMBean
         }
         if (localEndpoints.isEmpty())
         {
+            if (cl.isDatacenterLocal())
+                // If the consistency required is local then we should not involve other DCs
+                throw new UnavailableException(cl, cl.blockFor(keyspace), 0);
+
             // No endpoint in local DC, pick the closest endpoint according to the snitch
             snitch.sortByProximity(FBUtilities.getBroadcastAddress(), endpoints);
             return endpoints.get(0);
